@@ -1,0 +1,26 @@
+FROM alpine AS builder
+
+WORKDIR /app
+
+RUN echo '#!/bin/sh' > start.sh && \
+    echo 'IP_ADDRESS=$(ip route get 1 | awk "{print \$7; exit}")' >> start.sh && \
+    echo 'HOSTNAME=$(hostname)' >> start.sh && \
+    echo 'echo "<html><head><title>Info</title></head><body>" > /usr/share/nginx/html/index.html' >> start.sh && \
+    echo 'echo "<h1>Serwer działa!</h1>" >> /usr/share/nginx/html/index.html' >> start.sh && \
+    echo 'echo "<p>Adres IP: $IP_ADDRESS</p>" >> /usr/share/nginx/html/index.html' >> start.sh && \
+    echo 'echo "<p>Nazwa hosta: $HOSTNAME</p>" >> /usr/share/nginx/html/index.html' >> start.sh && \
+    echo 'echo "<p>Wersja aplikacji: ${VERSION:-Brak wersji}</p>" >> /usr/share/nginx/html/index.html' >> start.sh && \
+    echo 'echo "</body></html>" >> /usr/share/nginx/html/index.html' >> start.sh && \
+    chmod +x start.sh
+
+FROM nginx:alpine
+
+COPY --from=builder /app/start.sh /start.sh
+
+ARG VERSION="Brak wersji"
+ENV VERSION=$VERSION
+
+CMD ["/bin/sh", "-c", "/start.sh && nginx -g 'daemon off;'"]
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost || exit 1
